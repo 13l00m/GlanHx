@@ -4,7 +4,7 @@
 
 
 # Host碰撞模块相关用法
-![image](https://user-images.githubusercontent.com/58256808/223015131-c7da2b94-c4b6-45cf-80d6-ceeb1108bb09.png)
+![image](https://user-images.githubusercontent.com/58256808/223100972-9661b679-88da-47f5-974f-315b310dca2f.png)
 
 
 ./GlanHx hostcolide -h
@@ -25,6 +25,7 @@
         output  (default "result.txt")
   -P string //添加了端口扫描功能，可以指定端口进行扫描，默认为80,443
         Port default 80,443 (default "80,443")
+  -R    Support Redirect default true (default true) //添加了支持重定向功能
   -T int //指定爆破的线程数
         Thread default 10 (default 10)
 ```
@@ -37,6 +38,8 @@
 ./GlanHx hostcolide -IF ip.txt -HF host.txt -T 3
 
 ./GlanHx hostcolide -IF ip.txt -HF host.txt -T3 -P 80,443,8080,8443
+
+./GlanHx hostcolide -IF ip.txt -HF host.txt -T3 -P 80,443,8080,8443 -R=false
 
 ./GlanHx hostcolide -IF ip.txt -HF host.txt -T3 -P 80,443,8080,8443 -O result.txt
 
