@@ -111,12 +111,24 @@ func doRequest(Url, Host string) (scanData, error) {
 		//Proxy:           http.ProxyURL(proxy),
 	}
 
-	client := &http.Client{
-		Timeout:   1 * time.Second,
-		Transport: tr,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
+	var client *http.Client
+
+	if protocol_http.SupportRedirect == true {
+		client = &http.Client{
+			Timeout:   5 * time.Second,
+			Transport: tr,
+			//CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			//	return http.ErrUseLastResponse
+			//},
+		}
+	} else {
+		client = &http.Client{
+			Timeout:   5 * time.Second,
+			Transport: tr,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		}
 	}
 
 	http_resp, err := client.Do(req)

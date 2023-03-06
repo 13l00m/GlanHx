@@ -19,6 +19,8 @@ type HTTP_Response struct {
 type Protocol_HTTP struct {
 }
 
+var SupportRedirect bool
+
 func (r *HTTP_Response) ParseResponse(response *http.Response, TLS bool) {
 	r.TLS = TLS
 	r.StatusCode = response.StatusCode
@@ -50,12 +52,28 @@ func (r Protocol_HTTP) Analysis(host string, port int) (string, any, error) {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 
-	client := &http.Client{
-		Timeout:   10 * time.Second,
-		Transport: tr,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
+	var client *http.Client
+
+	if SupportRedirect == true {
+
+		client = &http.Client{
+			Timeout:   10 * time.Second,
+			Transport: tr,
+			//CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			//	return http.ErrUseLastResponse
+			//},
+		}
+	}
+
+	if SupportRedirect == false {
+
+		client = &http.Client{
+			Timeout:   10 * time.Second,
+			Transport: tr,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		}
 	}
 
 	https_resp, err = client.Do(https_req)

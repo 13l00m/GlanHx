@@ -1,25 +1,27 @@
 package hostcolide
 
 import (
+	"GlanHx/plugins/portscan/protocols/protocol_http"
 	"GlanHx/utils"
 	"flag"
 	"strings"
 )
 
 var (
-	ip         string
-	ipFile     string
-	host       string
-	hostFile   string
-	thread     int
-	port       string
-	output     string
-	factor     string
-	debug      bool
-	ipList     []string
-	hostList   []string
-	factorList []string
-	portList   []int
+	ip              string
+	ipFile          string
+	host            string
+	hostFile        string
+	thread          int
+	port            string
+	output          string
+	factor          string
+	debug           bool
+	ipList          []string
+	hostList        []string
+	factorList      []string
+	portList        []int
+	supportRedirect bool
 )
 
 func ParseFlag(flagset *flag.FlagSet, args []string) {
@@ -37,6 +39,8 @@ func ParseFlag(flagset *flag.FlagSet, args []string) {
 	flagset.StringVar(&output, "O", "result.txt", "output ")
 	flagset.StringVar(&factor, "F", "title,status_code", "Generate hash based on factors to filter junk data,Default title,status_code. Supported title,status_code,length")
 	flagset.BoolVar(&debug, "D", false, "Debug Mod if Open output All info")
+	flagset.BoolVar(&supportRedirect, "R", true, "Support Redirect default true")
+
 	flagset.Parse(args)
 
 	if ip == "" && ipFile == "" {
@@ -72,7 +76,7 @@ func ParseFlag(flagset *flag.FlagSet, args []string) {
 	hostList = utils.RemoveDuplicate_String(hostList)
 	factor = strings.ReplaceAll(factor, " ", "")
 	factorList = strings.Split(factor, ",")
-
+	protocol_http.SupportRedirect = supportRedirect
 	Scan()
 
 }
