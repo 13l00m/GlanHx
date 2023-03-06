@@ -39,6 +39,7 @@ func Scan() {
 		}
 		for _, tasks := range ipTask {
 			for _, task := range tasks {
+				hashMap := make(map[string]int)
 				for _, h := range hostList {
 					u := task.url
 					semaphore <- struct{}{}
@@ -58,8 +59,10 @@ func Scan() {
 							}
 						}
 						if debug == false {
-							if scdata.hash != task.hash {
-								saveData(scdata, 1, "[+]")
+							if checkHashCount(hashMap, scdata.hash) {
+								if scdata.hash != task.hash {
+									saveData(scdata, 1, "[+]")
+								}
 							}
 						}
 
@@ -72,6 +75,21 @@ func Scan() {
 	}
 
 	saveData(scanData{}, 2, "")
+
+}
+
+func checkHashCount(hashmap map[string]int, hash string) bool {
+	count := hashmap[hash]
+	if count == 0 {
+		hashmap[hash] += 1
+		return true
+	}
+	if count >= 5 {
+		return false
+	} else {
+		hashmap[hash] += 1
+		return true
+	}
 
 }
 
