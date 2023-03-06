@@ -4,6 +4,7 @@ import (
 	"GlanHx/plugins/portscan"
 	"GlanHx/plugins/portscan/protocols"
 	"GlanHx/plugins/portscan/protocols/protocol_http"
+	"GlanHx/utils"
 	"bufio"
 	"crypto/md5"
 	"crypto/tls"
@@ -22,55 +23,53 @@ var result []scanData
 
 func Scan() {
 	protocolList := make(map[string][]protocols.Protocol)
+	semaphore := make(chan struct{}, thread)
+	var wg sync.WaitGroup
 	for _, ip := range ipList {
 		protocol := portscan.Run(ip, portList)
 		protocolList[ip] = protocol
-	}
-	
-	ipTask := make(map[string][]scanData)
-	for _, protocol := range protocolList {
+		ipTask := make(map[string][]scanData)
 		for _, p := range protocol {
-			if p.ProtocolDetail != nil{
-				hash := generateHash(p.ProtocolDetail.(protocol_http.HTTP_Response).Title, p.ProtocolDetail.(protocol_http.HTTP_Response).StatusCode)
-				ipTask[p.GetHost()] = append(ipTask[p.GetHost()], scanData{url: generateUrl(p.GetHost(), p.GetPort(), p.ProtocolDetail.(protocol_http.HTTP_Response).TLS), hash: hash})
+			if p.Protocol == "HTTP" {
+				if p.ProtocolDetail != nil {
+					hash := generateHash(p.ProtocolDetail.(protocol_http.HTTP_Response).Title, p.ProtocolDetail.(protocol_http.HTTP_Response).StatusCode)
+					ipTask[p.GetHost()] = append(ipTask[p.GetHost()], scanData{url: generateUrl(p.GetHost(), p.GetPort(), p.ProtocolDetail.(protocol_http.HTTP_Response).TLS), hash: hash})
+				}
+			}
+
+		}
+		for _, tasks := range ipTask {
+			for _, task := range tasks {
+				for _, h := range hostList {
+					u := task.url
+					semaphore <- struct{}{}
+					wg.Add(1)
+					go func(host, url string) {
+						defer wg.Done()
+						defer func() { <-semaphore }()
+						scdata, err := doRequest(url, host)
+						if err != nil {
+							return
+						}
+						if debug == true {
+							if scdata.hash != task.hash {
+								saveData(scdata, 1, "[debug][+]")
+							} else {
+								saveData(scdata, 1, "[debug]")
+							}
+						}
+						if debug == false {
+							if scdata.hash != task.hash {
+								saveData(scdata, 1, "[+]")
+							}
+						}
+
+					}(h, u)
+				}
+				wg.Wait()
 			}
 		}
-	}
 
-	for _, tasks := range ipTask {
-		//fmt.Println(ip, task)
-		for _, task := range tasks {
-
-			semaphore := make(chan struct{}, thread)
-			var wg sync.WaitGroup
-			for _, host := range hostList {
-				semaphore <- struct{}{}
-				wg.Add(1)
-				go func(host string) {
-					defer wg.Done()
-					defer func() { <-semaphore }()
-					scdata, err := doRequest(task.url, host)
-					if err != nil {
-						return
-					}
-					if debug == true {
-						if scdata.hash != task.hash {
-							saveData(scdata, 1, "[debug][+]")
-						} else {
-							saveData(scdata, 1, "[debug]")
-						}
-					}
-					if debug == false {
-						if scdata.hash != task.hash {
-							saveData(scdata, 1, "[+]")
-							//fmt.Println("[+]", scdata.url, scdata.host, scdata.title, scdata.status_code, scdata.length)
-						}
-					}
-
-				}(host)
-			}
-			wg.Wait()
-		}
 	}
 
 	saveData(scanData{}, 2, "")
@@ -97,10 +96,14 @@ func saveData(scdata scanData, mod int, prefix string) {
 	}
 }
 
+//这里就直接生成hash得了
 func doRequest(Url, Host string) (scanData, error) {
 
-	req, _ := http.NewRequest("GET", Url, nil)
+	req, err := http.NewRequest("GET", Url, nil)
 
+	if err != nil {
+		return scanData{}, err
+	}
 	req.Host = Host
 	//proxy, _ := url.Parse("http://127.0.0.1:8080")
 	tr := &http.Transport{
@@ -122,12 +125,8 @@ func doRequest(Url, Host string) (scanData, error) {
 	}
 	if http_resp != nil {
 		defer http_resp.Body.Close()
-		var title string
-		parser, err := html.Parse(http_resp.Body)
-		if err != nil {
-			title = ""
-		}
-		title = getTitle(parser)
+
+		title, length, _ := utils.GetTitleAndLength(http_resp.Body)
 
 		hash := generateHash(title, http_resp.StatusCode)
 
@@ -137,7 +136,7 @@ func doRequest(Url, Host string) (scanData, error) {
 		data.host = Host
 		data.status_code = http_resp.StatusCode
 		data.hash = hash
-		data.length = http_resp.ContentLength
+		data.length = length
 		return data, nil
 	}
 	return scanData{}, errors.New("noresponse")
@@ -162,7 +161,7 @@ func Scan_API(iplist []string, portList []int) {
 }
 
 func generateHash(title string, status_code int) string {
-	str := title + string(status_code)
+	str := fmt.Sprintf("%s:%d", title, status_code)
 	hash := md5.Sum([]byte(str))
 	return hex.EncodeToString(hash[:])
 }
@@ -174,10 +173,10 @@ func generateUrl(host string, port int, tls bool) string {
 		return "https://" + host + "/"
 	} else {
 		if tls == true {
-			return "https://" + host + ":" + string(port) + "/"
+			return fmt.Sprintf("https://%s:%d/", host, port)
 		}
 		if tls == false {
-			return "http://" + host + ":" + string(port) + "/"
+			return fmt.Sprintf("http://%s:%d/", host, port)
 		}
 	}
 	return ""

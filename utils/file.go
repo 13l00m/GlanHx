@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net"
 	"strings"
@@ -21,7 +20,6 @@ func IpFileToStringArray(filename string) []string {
 		ip = strings.ReplaceAll(ip, "\r", "")
 		ip = strings.ReplaceAll(ip, " ", "")
 		if net.ParseIP(ip) == nil {
-			fmt.Println(ip)
 			continue
 		}
 		verified_ips = append(verified_ips, ip)

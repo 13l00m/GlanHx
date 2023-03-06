@@ -1,11 +1,10 @@
 package protocol_http
 
 import (
+	"GlanHx/utils"
 	"crypto/tls"
 	"fmt"
-	"golang.org/x/net/html"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -21,31 +20,16 @@ type Protocol_HTTP struct {
 }
 
 func (r *HTTP_Response) ParseResponse(response *http.Response, TLS bool) {
-	r.Length = response.ContentLength
 	r.TLS = TLS
 	r.StatusCode = response.StatusCode
+	r.Length = response.ContentLength
 	//r.Title = getTitle(response.Body)
-	parser, err := html.Parse(response.Body)
-	if err != nil {
-		r.Title = ""
-	}
-	r.Title = getTitle(parser)
-}
-
-func getTitle(n *html.Node) string {
-	if n.Type == html.ElementNode && n.Data == "title" && n.FirstChild != nil {
-		return strings.TrimSpace(n.FirstChild.Data)
-	}
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		title := getTitle(c)
-		if title != "" {
-			return title
-		}
-	}
-	return ""
+	r.Title, r.Length, _ = utils.GetTitleAndLength(response.Body)
 }
 
 func (r Protocol_HTTP) Analysis(host string, port int) (string, any, error) {
+	var http_resp *http.Response
+	var https_resp *http.Response
 	isHTTP := false
 	isHTTPS := false
 	isWEB := false
@@ -67,30 +51,45 @@ func (r Protocol_HTTP) Analysis(host string, port int) (string, any, error) {
 	}
 
 	client := &http.Client{
-		Timeout:   1 * time.Second,
+		Timeout:   10 * time.Second,
 		Transport: tr,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 	}
-	http_resp, _ := client.Do(http_req)
-	if http_resp != nil {
-		isWEB = true
-		isHTTP = true
-		defer http_resp.Body.Close()
+
+	https_resp, err = client.Do(https_req)
+
+	if err == nil {
+		if https_resp != nil {
+			isWEB = true
+			isHTTPS = true
+			isHTTP = false
+
+			defer https_resp.Body.Close()
+		}
 	}
-	https_resp, _ := client.Do(https_req)
 
-	if https_resp != nil {
-		isWEB = true
-		isHTTPS = true
-		isHTTP = false
+	if isWEB == false {
 
-		defer https_resp.Body.Close()
+		http_resp, err = client.Do(http_req)
+
+		if err == nil {
+			if http_resp != nil {
+				if http_resp.Status != "400 Bad Request" {
+					isWEB = true
+					isHTTP = true
+					defer http_resp.Body.Close()
+				}
+			}
+		}
 	}
 
 	if isWEB {
-		if isHTTP {
-			response.ParseResponse(http_resp, false)
-		} else if isHTTPS {
+		if isHTTPS {
 			response.ParseResponse(https_resp, true)
+		} else if isHTTP {
+			response.ParseResponse(http_resp, false)
 		}
 		return "HTTP", response, nil
 	}

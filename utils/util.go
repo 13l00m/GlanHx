@@ -1,6 +1,11 @@
 package utils
 
-import "strconv"
+import (
+	"io"
+	"io/ioutil"
+	"regexp"
+	"strconv"
+)
 
 func RemoveDuplicate(elements []int) []int {
 	// 使用 map 去重
@@ -50,4 +55,19 @@ func StringArray2IntArray(s []string) []int {
 		int_arr[i] = p_int
 	}
 	return int_arr
+}
+
+func GetTitleAndLength(body io.ReadCloser) (string, int64, error) {
+	data, err := ioutil.ReadAll(body)
+	length := len(data)
+	if err != nil {
+		return "", 0, nil
+	}
+
+	titleRegexp := regexp.MustCompile(`(?i)<title>(.*?)</title>`)
+	matches := titleRegexp.FindStringSubmatch(string(data))
+	if len(matches) > 1 {
+		return matches[1], int64(length), nil
+	}
+	return "", int64(length), nil
 }
