@@ -11,7 +11,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"golang.org/x/net/html"
 	"net/http"
 	"os"
 	"strings"
@@ -32,7 +31,7 @@ func Scan() {
 		for _, p := range protocol {
 			if p.Protocol == "HTTP" {
 				if p.ProtocolDetail != nil {
-					hash := generateHash(p.ProtocolDetail.(protocol_http.HTTP_Response).Title, p.ProtocolDetail.(protocol_http.HTTP_Response).StatusCode)
+					hash := generateHash(p.ProtocolDetail.(protocol_http.HTTP_Response).Title, p.ProtocolDetail.(protocol_http.HTTP_Response).StatusCode, p.ProtocolDetail.(protocol_http.HTTP_Response).Length)
 					ipTask[p.GetHost()] = append(ipTask[p.GetHost()], scanData{url: generateUrl(p.GetHost(), p.GetPort(), p.ProtocolDetail.(protocol_http.HTTP_Response).TLS), hash: hash})
 				}
 			}
@@ -79,7 +78,7 @@ func Scan() {
 func saveData(scdata scanData, mod int, prefix string) {
 	if mod == 1 {
 		result = append(result, scdata)
-		fmt.Println(prefix, scdata.url, scdata.host, scdata.length, scdata.title, scdata.status_code)
+		fmt.Println(prefix, strings.Split(scdata.url, "/")[2], "--", scdata.host, "--", scdata.url, "length:", scdata.length, "title:", scdata.title, "status_code:", scdata.status_code)
 	}
 
 	if mod == 2 {
@@ -90,13 +89,12 @@ func saveData(scdata scanData, mod int, prefix string) {
 		defer file.Close()
 		writer := bufio.NewWriter(file)
 		for _, data := range result {
-			writer.WriteString(fmt.Sprintf("%s %s %d %s %d\n", data.url, data.host, data.length, data.title, data.status_code))
+			writer.WriteString(fmt.Sprintf("%s -- %s -- %s length: %d title: %s status_code: %d\n", strings.Split(data.url, "/")[2], data.host, data.url, data.length, data.title, data.status_code))
 		}
 		writer.Flush()
 	}
 }
 
-//这里就直接生成hash得了
 func doRequest(Url, Host string) (scanData, error) {
 
 	req, err := http.NewRequest("GET", Url, nil)
@@ -140,7 +138,7 @@ func doRequest(Url, Host string) (scanData, error) {
 
 		title, length, _ := utils.GetTitleAndLength(http_resp.Body)
 
-		hash := generateHash(title, http_resp.StatusCode)
+		hash := generateHash(title, http_resp.StatusCode, length)
 
 		data := scanData{}
 		data.title = title
@@ -155,25 +153,12 @@ func doRequest(Url, Host string) (scanData, error) {
 
 }
 
-func getTitle(n *html.Node) string {
-	if n.Type == html.ElementNode && n.Data == "title" && n.FirstChild != nil {
-		return strings.TrimSpace(n.FirstChild.Data)
-	}
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		title := getTitle(c)
-		if title != "" {
-			return title
-		}
-	}
-	return ""
-}
-
 func Scan_API(iplist []string, portList []int) {
 
 }
 
-func generateHash(title string, status_code int) string {
-	str := fmt.Sprintf("%s:%d", title, status_code)
+func generateHash(title string, status_code int, length int64) string {
+	str := fmt.Sprintf("%s:%d:%d", title, status_code, length)
 	hash := md5.Sum([]byte(str))
 	return hex.EncodeToString(hash[:])
 }
