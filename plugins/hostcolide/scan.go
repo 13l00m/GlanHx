@@ -20,6 +20,8 @@ import (
 
 var result []scanData
 
+var mu sync.Mutex
+
 func Scan() {
 	protocolList := make(map[string][]protocols.Protocol)
 	semaphore := make(chan struct{}, thread)
@@ -60,9 +62,12 @@ func Scan() {
 						}
 						if debug == false {
 							if checkHashCount(hashMap, scdata.hash) {
+								mu.Unlock()
 								if scdata.hash != task.hash {
 									saveData(scdata, 1, "[+]")
 								}
+							} else {
+								mu.Unlock()
 							}
 						}
 
@@ -79,6 +84,7 @@ func Scan() {
 }
 
 func checkHashCount(hashmap map[string]int, hash string) bool {
+	mu.Lock()
 	count := hashmap[hash]
 	if count == 0 {
 		hashmap[hash] += 1
@@ -96,7 +102,7 @@ func checkHashCount(hashmap map[string]int, hash string) bool {
 func saveData(scdata scanData, mod int, prefix string) {
 	if mod == 1 {
 		result = append(result, scdata)
-		fmt.Println(prefix, strings.Split(scdata.url, "/")[2], "--", scdata.host, "--", scdata.url, "length:", scdata.length, "title:", scdata.title, "status_code:", scdata.status_code)
+		fmt.Println(prefix, strings.Split(scdata.url, "/")[2], "--", scdata.host, "--", scdata.url, "title:", scdata.title, "status_code:", scdata.status_code, "length:", scdata.length)
 	}
 
 	if mod == 2 {
@@ -107,7 +113,7 @@ func saveData(scdata scanData, mod int, prefix string) {
 		defer file.Close()
 		writer := bufio.NewWriter(file)
 		for _, data := range result {
-			writer.WriteString(fmt.Sprintf("%s -- %s -- %s length: %d title: %s status_code: %d\n", strings.Split(data.url, "/")[2], data.host, data.url, data.length, data.title, data.status_code))
+			writer.WriteString(fmt.Sprintf("%s -- %s -- %s status_code: %d title: %s length: %d\n", strings.Split(data.url, "/")[2], data.host, data.url, data.title, data.status_code, data.length))
 		}
 		writer.Flush()
 	}
