@@ -102,7 +102,7 @@ func checkHashCount(hashmap map[string]int, hash string) bool {
 func saveData(scdata scanData, mod int, prefix string) {
 	if mod == 1 {
 		result = append(result, scdata)
-		fmt.Println(prefix, strings.Split(scdata.url, "/")[2], "--", scdata.host, "--", scdata.url, "title:", scdata.title, "status_code:", scdata.status_code, "length:", scdata.length)
+		fmt.Println(prefix, strings.Split(scdata.url, "/")[2], "--", scdata.host, "--", scdata.url, "status_code:", scdata.status_code, "length:", scdata.length, "title:", scdata.title)
 	}
 
 	if mod == 2 {
@@ -113,7 +113,7 @@ func saveData(scdata scanData, mod int, prefix string) {
 		defer file.Close()
 		writer := bufio.NewWriter(file)
 		for _, data := range result {
-			writer.WriteString(fmt.Sprintf("%s -- %s -- %s status_code: %d title: %s length: %d\n", strings.Split(data.url, "/")[2], data.host, data.url, data.title, data.status_code, data.length))
+			writer.WriteString(fmt.Sprintf("%s -- %s -- %s status_code: %d length: %d title: %s\n", strings.Split(data.url, "/")[2], data.host, data.url, data.status_code, data.length, data.title))
 		}
 		writer.Flush()
 	}
