@@ -26,12 +26,14 @@ func Scan() {
 		protocol := portscan.Run(ip, portList)
 		protocolList[ip] = protocol
 	}
-	// 这里就该生成target http:// https:// hash ...
+	
 	ipTask := make(map[string][]scanData)
 	for _, protocol := range protocolList {
 		for _, p := range protocol {
-			hash := generateHash(p.ProtocolDetail.(protocol_http.HTTP_Response).Title, p.ProtocolDetail.(protocol_http.HTTP_Response).StatusCode)
-			ipTask[p.GetHost()] = append(ipTask[p.GetHost()], scanData{url: generateUrl(p.GetHost(), p.GetPort(), p.ProtocolDetail.(protocol_http.HTTP_Response).TLS), hash: hash})
+			if p.ProtocolDetail != nil{
+				hash := generateHash(p.ProtocolDetail.(protocol_http.HTTP_Response).Title, p.ProtocolDetail.(protocol_http.HTTP_Response).StatusCode)
+				ipTask[p.GetHost()] = append(ipTask[p.GetHost()], scanData{url: generateUrl(p.GetHost(), p.GetPort(), p.ProtocolDetail.(protocol_http.HTTP_Response).TLS), hash: hash})
+			}
 		}
 	}
 
@@ -95,7 +97,6 @@ func saveData(scdata scanData, mod int, prefix string) {
 	}
 }
 
-//这里就直接生成hash得了
 func doRequest(Url, Host string) (scanData, error) {
 
 	req, _ := http.NewRequest("GET", Url, nil)
