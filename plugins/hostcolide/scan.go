@@ -61,10 +61,15 @@ func Scan() {
 							}
 						}
 						if debug == false {
-							if checkHashCount(hashMap, scdata.hash) {
+							if count := checkHashCount(hashMap, scdata.hash); count <= 1 {
 								mu.Unlock()
 								if scdata.hash != task.hash {
 									saveData(scdata, 1, "[+]")
+								}
+							} else if count <= 5 {
+								mu.Unlock()
+								if scdata.hash != task.hash {
+									saveData(scdata, 1, "[-]")
 								}
 							} else {
 								mu.Unlock()
@@ -83,19 +88,10 @@ func Scan() {
 
 }
 
-func checkHashCount(hashmap map[string]int, hash string) bool {
+func checkHashCount(hashmap map[string]int, hash string) int {
 	mu.Lock()
-	count := hashmap[hash]
-	if count == 0 {
-		hashmap[hash] += 1
-		return true
-	}
-	if count >= 5 {
-		return false
-	} else {
-		hashmap[hash] += 1
-		return true
-	}
+	hashmap[hash] += 1
+	return hashmap[hash]
 
 }
 
